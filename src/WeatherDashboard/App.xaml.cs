@@ -5,6 +5,7 @@ using System.Windows;
 using WeatherDashboard.Data;
 using WeatherDashboard.Services;
 using WeatherDashboard.Services.Interfaces;
+using WeatherDashboard.ViewModels;
 
 namespace WeatherDashboard
 {
@@ -55,6 +56,9 @@ namespace WeatherDashboard
                 client.BaseAddress = new Uri("https://api.openweathermap.org/data/2.5/");
                 client.Timeout = TimeSpan.FromSeconds(30);
             });
+
+            // ViewModels
+            services.AddTransient<DashboardViewModel>();
 
             // Main Window
             services.AddSingleton<MainWindow>();
