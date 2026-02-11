@@ -23,7 +23,8 @@ namespace WeatherDashboard
 
             InitializeDatabase();
 
-            var mainWindow = ServiceProvider.GetRequiredService<MainWindow>();
+            // Pass ServiceProvider to MainWindow
+            var mainWindow = new MainWindow(ServiceProvider);
             mainWindow.Show();
         }
 
@@ -48,7 +49,9 @@ namespace WeatherDashboard
 
             // Services
             services.AddSingleton<IWeatherService, WeatherApiService>();
+            services.AddSingleton<ILocationService, LocationService>();
             services.AddScoped<IDataService, DataService>();
+            services.AddScoped<IReportService, ReportService>();  // NEW
 
             // HttpClient for weather API
             services.AddHttpClient<IWeatherService, WeatherApiService>(client =>
@@ -59,6 +62,7 @@ namespace WeatherDashboard
 
             // ViewModels
             services.AddTransient<DashboardViewModel>();
+            services.AddTransient<HistoryViewModel>();  // NEW
 
             // Main Window
             services.AddSingleton<MainWindow>();

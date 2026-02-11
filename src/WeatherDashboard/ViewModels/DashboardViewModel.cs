@@ -1,9 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using System;
 using System.Collections.ObjectModel;
-using System.DirectoryServices.ActiveDirectory;
-using System.Threading.Tasks;
 using WeatherDashboard.Data.Entities;
 using WeatherDashboard.Models;
 using WeatherDashboard.Services.Interfaces;
@@ -13,7 +10,6 @@ namespace WeatherDashboard.ViewModels
     public partial class DashboardViewModel : ViewModelBase
     {
         private readonly IWeatherService _weatherService;
-        private readonly IDataService _dataService;
 
         [ObservableProperty]
         private WeatherData? _currentWeather;
@@ -36,39 +32,58 @@ namespace WeatherDashboard.ViewModels
         [ObservableProperty]
         private bool _useCelsius = true;
 
-        public DashboardViewModel(IWeatherService weatherService, IDataService dataService)
+        public string FormattedTemperature
         {
-            _weatherService = weatherService;
-            _dataService = dataService;
+            get
+            {
+                if (CurrentWeather == null) return "--°";
+                var temp = UseCelsius ? CurrentWeather.Temperature : (CurrentWeather.Temperature * 9 / 5) + 32;
+                var unit = UseCelsius ? "C" : "F";
+                return $"{temp:F1}°{unit}";
+            }
         }
 
-        public async Task InitializeAsync()
+        public string FormattedFeelsLike
         {
+            get
+            {
+                if (CurrentWeather == null) return "--°";
+                var temp = UseCelsius ? CurrentWeather.FeelsLike : (CurrentWeather.FeelsLike * 9 / 5) + 32;
+                return $"{temp:F1}°";
+            }
+        }
+
+        public DashboardViewModel(IWeatherService weatherService, IDataService dataService, ILocationService locationService)
+            : base(dataService, locationService)
+        {
+            _weatherService = weatherService;
+        }
+
+        public override async Task InitializeAsync()
+        {
+            // If selected location is null, set to default location from settings
+            await base.InitializeAsync();
+            // Load settings and locations first, then set SelectedLocation after IsBusy is false
             await ExecuteAsync(async () =>
             {
                 // Load temperature unit preference
-                var tempUnit = await _dataService.GetSettingAsync("TemperatureUnit", "Celsius");
+                var tempUnit = await DataService.GetSettingAsync("TemperatureUnit", "Celsius");
                 UseCelsius = tempUnit == "Celsius";
 
                 // Load API key from settings
-                var apiKey = await _dataService.GetSettingAsync("ApiKey");
+                var apiKey = await DataService.GetSettingAsync("ApiKey");
                 if (!string.IsNullOrEmpty(apiKey))
                 {
                     _weatherService.SetApiKey(apiKey);
                 }
 
                 // Load all locations
-                var allLocations = await _dataService.GetAllLocationsAsync();
+                var allLocations = await DataService.GetAllLocationsAsync();
                 Locations = new ObservableCollection<SavedLocation>(allLocations);
-
-                // Load default location
-                SelectedLocation = await _dataService.GetDefaultLocationAsync();
-
-                if (SelectedLocation != null)
-                {
-                    await LoadWeatherAsync();
-                }
             }, "Failed to initialize dashboard");
+
+            // Set SelectedLocation AFTER ExecuteAsync completes (IsBusy is now false)
+            SelectedLocation = LocationService.SelectedLocation;
         }
 
         [RelayCommand]
@@ -108,7 +123,7 @@ namespace WeatherDashboard.ViewModels
                     IconCode = CurrentWeather.IconCode
                 };
 
-                await _dataService.SaveWeatherRecordAsync(record);
+                await DataService.SaveWeatherRecordAsync(record);
 
                 LastUpdated = DateTime.Now;
 
@@ -124,7 +139,7 @@ namespace WeatherDashboard.ViewModels
                 var weather = await _weatherService.GetCurrentWeatherAsync(SearchText);
 
                 // Check if location already exists
-                var existingLocation = await _dataService.GetLocationByNameAsync(weather.LocationName);
+                var existingLocation = await DataService.GetLocationByNameAsync(weather.LocationName);
 
                 if (existingLocation != null)
                 {
@@ -143,10 +158,10 @@ namespace WeatherDashboard.ViewModels
                         IsFavorite = false
                     };
 
-                    SelectedLocation = await _dataService.AddLocationAsync(newLocation);
+                    SelectedLocation = await DataService.AddLocationAsync(newLocation);
 
                     // Reload locations
-                    var allLocations = await _dataService.GetAllLocationsAsync();
+                    var allLocations = await DataService.GetAllLocationsAsync();
                     Locations = new ObservableCollection<SavedLocation>(allLocations);
                 }
 
@@ -169,10 +184,38 @@ namespace WeatherDashboard.ViewModels
 
         partial void OnSelectedLocationChanged(SavedLocation? value)
         {
-            if (value != null && CurrentWeather?.LocationName != value.Name)
+            // update global state with the new selection
+            LocationService.SelectedLocation = value; 
+            if (value != null)
             {
                 _ = LoadWeatherAsync();
             }
+        }
+
+        [RelayCommand]
+        private async Task SetDefaultLocationAsync()
+        {
+            if (SelectedLocation == null) return;
+
+            await ExecuteAsync(async () =>
+            {
+                await DataService.SaveSettingAsync("DefaultLocationId", SelectedLocation.Id.ToString());
+
+                // Show brief success message
+                var originalError = ErrorMessage;
+                ErrorMessage = $"? {SelectedLocation.Name} set as default location";
+
+                await Task.Delay(2000);
+                ErrorMessage = originalError;
+
+            }, "Failed to set default location");
+        }
+
+        [RelayCommand]
+        private async Task ToggleTemperatureUnitAsync()
+        {
+            UseCelsius = !UseCelsius;
+            await DataService.SaveSettingAsync("TemperatureUnit", UseCelsius ? "Celsius" : "Fahrenheit");
         }
 
         public string GetFormattedTemperature(double temp)
@@ -184,6 +227,17 @@ namespace WeatherDashboard.ViewModels
                 var fahrenheit = (temp * 9 / 5) + 32;
                 return $"{fahrenheit:F1}°F";
             }
+        }
+        partial void OnUseCelsiusChanged(bool value)
+        {
+            OnPropertyChanged(nameof(FormattedTemperature));
+            OnPropertyChanged(nameof(FormattedFeelsLike));
+        }
+
+        partial void OnCurrentWeatherChanged(WeatherData? value)
+        {
+            OnPropertyChanged(nameof(FormattedTemperature));
+            OnPropertyChanged(nameof(FormattedFeelsLike));
         }
     }
 }
