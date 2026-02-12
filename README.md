@@ -18,6 +18,8 @@ A WPF weather dashboard built with .NET 8 that displays current conditions, fore
 *Interactive temperature and humidity trends with ScottPlot visualization*
 
 ### Report Generation
+![PDF Report](docs/images/pdf-report.png)
+
 ![Excel Report](docs/images/excel-report.png)
 *Professional PDF and Excel reports with comprehensive weather statistics*
 
@@ -314,8 +316,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Joel Cossins**  
 Email: joel1227@proton.me  
-GitHub: [@yourusername](https://github.com/yourusername)  
-LinkedIn: [Your Profile](https://linkedin.com/in/yourprofile)
+GitHub: [@pj1227](https://github.com/pj1227)  
+LinkedIn: [joel-cossins](https://linkedin.com/in/joel-cossins-1077384)
 
 ---
 
