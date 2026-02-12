@@ -10,21 +10,50 @@ namespace WeatherDashboard.ViewModels
         private string _errorMessage = string.Empty;
 
         protected IDataService DataService { get; }
-        protected ILocationService LocationService { get; }
+        protected IApplicationStateService StateService { get; }
 
+        // Expose for binding - no backing field needed
         public SavedLocation? SelectedLocation
         {
-            get => LocationService.SelectedLocation;
-            set => LocationService.SelectedLocation = value;
+            get => StateService.SelectedLocation;
+            set
+            {
+                if (StateService.SelectedLocation != value)
+                {
+                    StateService.SelectedLocation = value;
+                    OnPropertyChanged();
+                }
+            }
         }
 
-        protected ViewModelBase(IDataService dataService, ILocationService locationService)
+        public bool UseCelsius
         {
-            DataService = dataService ?? throw new ArgumentNullException(nameof(dataService));
-            LocationService = locationService ?? throw new ArgumentNullException(nameof(locationService));
+            get => StateService.UseCelsius;
+            set
+            {
+                if (StateService.UseCelsius != value)
+                {
+                    StateService.UseCelsius = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
 
-            // Subscribe to location changes
-            LocationService.PropertyChanged += (_, __) => OnPropertyChanged(nameof(SelectedLocation));
+
+        protected ViewModelBase(IDataService dataService, IApplicationStateService stateService)
+        {
+            DataService = dataService;
+            StateService = stateService;
+
+            StateService.SelectedLocationChanged += (s, location) =>
+            {
+                OnPropertyChanged(nameof(SelectedLocation));
+            };
+
+            StateService.TemperatureUnitChanged += (s, value) =>
+            {
+                OnPropertyChanged(nameof(UseCelsius));
+            };
         }
 
         public bool IsBusy
@@ -82,9 +111,6 @@ namespace WeatherDashboard.ViewModels
 
         public virtual async Task InitializeAsync()
         {
-            // set default location
-            if (SelectedLocation == null)
-                SelectedLocation = await DataService.GetDefaultLocationAsync();
         }
     }
 }

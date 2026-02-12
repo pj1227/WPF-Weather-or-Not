@@ -18,9 +18,6 @@ namespace WeatherDashboard.ViewModels
         private ObservableCollection<ForecastData> _forecast = new();
 
         [ObservableProperty]
-        private SavedLocation? _selectedLocation;
-
-        [ObservableProperty]
         private ObservableCollection<SavedLocation> _locations = new();
 
         [ObservableProperty]
@@ -28,9 +25,6 @@ namespace WeatherDashboard.ViewModels
 
         [ObservableProperty]
         private DateTime _lastUpdated;
-
-        [ObservableProperty]
-        private bool _useCelsius = true;
 
         public string FormattedTemperature
         {
@@ -53,37 +47,55 @@ namespace WeatherDashboard.ViewModels
             }
         }
 
-        public DashboardViewModel(IWeatherService weatherService, IDataService dataService, ILocationService locationService)
-            : base(dataService, locationService)
+        public DashboardViewModel(IDataService dataService,
+            IApplicationStateService stateService,
+            IWeatherService weatherService)
+            : base(dataService, stateService)
         {
             _weatherService = weatherService;
+
+            // Subscribe to location changes for this VM's specific logic
+            StateService.SelectedLocationChanged += async (s, location) =>
+            {
+                if (location != null && !IsBusy)
+                    await LoadWeatherAsync();
+            };
+            // subscribe to temperature unit changes
+            StateService.TemperatureUnitChanged += (s, value) =>
+            {
+                OnPropertyChanged(nameof(UseCelsius));
+                OnPropertyChanged(nameof(FormattedTemperature));
+                OnPropertyChanged(nameof(FormattedFeelsLike));
+            };
+
         }
 
         public override async Task InitializeAsync()
         {
-            // If selected location is null, set to default location from settings
-            await base.InitializeAsync();
-            // Load settings and locations first, then set SelectedLocation after IsBusy is false
             await ExecuteAsync(async () =>
             {
-                // Load temperature unit preference
-                var tempUnit = await DataService.GetSettingAsync("TemperatureUnit", "Celsius");
-                UseCelsius = tempUnit == "Celsius";
-
-                // Load API key from settings
+                // Load API key
                 var apiKey = await DataService.GetSettingAsync("ApiKey");
                 if (!string.IsNullOrEmpty(apiKey))
                 {
                     _weatherService.SetApiKey(apiKey);
                 }
 
-                // Load all locations
+                // Load locations
                 var allLocations = await DataService.GetAllLocationsAsync();
                 Locations = new ObservableCollection<SavedLocation>(allLocations);
+
+                var current = SelectedLocation;
+                SelectedLocation = null;
+                SelectedLocation = current;
+
             }, "Failed to initialize dashboard");
 
-            // Set SelectedLocation AFTER ExecuteAsync completes (IsBusy is now false)
-            SelectedLocation = LocationService.SelectedLocation;
+            // Load weather if location already set
+            if (SelectedLocation != null)
+            {
+                await LoadWeatherAsync();
+            }
         }
 
         [RelayCommand]
@@ -182,16 +194,6 @@ namespace WeatherDashboard.ViewModels
             await LoadWeatherAsync();
         }
 
-        partial void OnSelectedLocationChanged(SavedLocation? value)
-        {
-            // update global state with the new selection
-            LocationService.SelectedLocation = value; 
-            if (value != null)
-            {
-                _ = LoadWeatherAsync();
-            }
-        }
-
         [RelayCommand]
         private async Task SetDefaultLocationAsync()
         {
@@ -215,7 +217,9 @@ namespace WeatherDashboard.ViewModels
         private async Task ToggleTemperatureUnitAsync()
         {
             UseCelsius = !UseCelsius;
-            await DataService.SaveSettingAsync("TemperatureUnit", UseCelsius ? "Celsius" : "Fahrenheit");
+            await DataService.SaveSettingAsync(
+                "TemperatureUnit", 
+                UseCelsius ? "Celsius" : "Fahrenheit");
         }
 
         public string GetFormattedTemperature(double temp)
@@ -227,11 +231,6 @@ namespace WeatherDashboard.ViewModels
                 var fahrenheit = (temp * 9 / 5) + 32;
                 return $"{fahrenheit:F1}°F";
             }
-        }
-        partial void OnUseCelsiusChanged(bool value)
-        {
-            OnPropertyChanged(nameof(FormattedTemperature));
-            OnPropertyChanged(nameof(FormattedFeelsLike));
         }
 
         partial void OnCurrentWeatherChanged(WeatherData? value)

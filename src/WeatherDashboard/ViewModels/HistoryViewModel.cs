@@ -17,9 +17,6 @@ namespace WeatherDashboard.ViewModels
         private ObservableCollection<SavedLocation> _locations = new();
 
         [ObservableProperty]
-        private SavedLocation? _selectedLocation;
-
-        [ObservableProperty]
         private DateTime _startDate = DateTime.Now.AddDays(-30);
 
         [ObservableProperty]
@@ -35,41 +32,38 @@ namespace WeatherDashboard.ViewModels
         private Plot _humidityPlot = new Plot();
 
         [ObservableProperty]
-        private bool _useCelsius = true;
-
-        [ObservableProperty]
-        private string _successMessage = string.Empty;
+        private string _successMessage = string.Empty; 
 
         public bool HasSuccess => !string.IsNullOrEmpty(SuccessMessage);
 
-        public HistoryViewModel(IDataService dataService, IReportService reportService, ILocationService locationService) 
-            : base(dataService, locationService)
+        public HistoryViewModel(IDataService dataService,
+            IApplicationStateService stateService,
+            IReportService reportService)
+            : base(dataService, stateService)
         {
             _reportService = reportService;
+
+            // Subscribe to changes
+            StateService.SelectedLocationChanged += async (s, location) =>
+            {
+                if (location != null && !IsBusy)
+                    await LoadHistoryAsync();
+            };
         }
 
         public override async Task InitializeAsync()
         {
-            // set selected location from global state BEFORE loading history, but AFTER base initialization
-            await base.InitializeAsync();
-            // Load settings and locations first, but don't set SelectedLocation until after ExecuteAsync completes
             await ExecuteAsync(async () =>
             {
-                var tempUnit = await DataService.GetSettingAsync("TemperatureUnit", "Celsius");
-                UseCelsius = tempUnit == "Celsius";
-
                 var allLocations = await DataService.GetAllLocationsAsync();
                 Locations = new ObservableCollection<SavedLocation>(allLocations);
 
-                // Set flag but DON'T set SelectedLocation yet
+            }, "Failed to initialize history");
 
-            }, "Failed to initialize history view");
-
-            // Set flag AFTER ExecuteAsync completes
-            _isInitialized = true;
-
-            // Now set SelectedLocation (IsBusy is false, _isInitialized is true)
-            SelectedLocation = LocationService.SelectedLocation;
+            if (SelectedLocation != null)
+            {
+                await LoadHistoryAsync();
+            }
         }
 
         [RelayCommand]
@@ -255,16 +249,6 @@ namespace WeatherDashboard.ViewModels
                 OnPropertyChanged(nameof(HasSuccess));
 
             }, "Failed to export Excel report");
-        }
-
-        partial void OnSelectedLocationChanged(SavedLocation? value)
-        {
-            // update global state with the new selection
-            LocationService.SelectedLocation = value; 
-            if (value != null && _isInitialized)
-            {
-                _ = LoadHistoryAsync();
-            }
         }
 
         partial void OnStartDateChanged(DateTime value)
