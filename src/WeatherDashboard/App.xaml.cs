@@ -6,7 +6,6 @@ using System.Windows;
 using WeatherDashboard.Data;
 using WeatherDashboard.Services;
 using WeatherDashboard.Services.Interfaces;
-using WeatherDashboard.Services.WeatherDashboard.Services;
 using WeatherDashboard.ViewModels;
 
 namespace WeatherDashboard
