@@ -12,7 +12,8 @@ namespace WeatherDashboard.Services
     public class WeatherApiService : IWeatherService
     {
         private readonly HttpClient _httpClient;
-        private string _apiKey = "YOUR_API_KEY_HERE"; // Will be set from settings
+        private string _apiKey = "PLACEHOLDER"; // Will be set from settings
+        private string _units = "metric"; // Will be set from settings
 
         public WeatherApiService(HttpClient httpClient)
         {
@@ -27,7 +28,7 @@ namespace WeatherDashboard.Services
 
         public async Task<WeatherData> GetCurrentWeatherAsync(string cityName)
         {
-            var url = $"weather?q={Uri.EscapeDataString(cityName)}&appid={_apiKey}&units=metric";
+            var url = $"weather?q={Uri.EscapeDataString(cityName)}&appid={_apiKey}&units={_units}";
             var json = await _httpClient.GetStringAsync(url);
             var response = JsonSerializer.Deserialize<CurrentWeatherResponse>(json,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -40,7 +41,7 @@ namespace WeatherDashboard.Services
 
         public async Task<WeatherData> GetCurrentWeatherAsync(double lat, double lon)
         {
-            var url = $"weather?lat={lat}&lon={lon}&appid={_apiKey}&units=metric";
+            var url = $"weather?lat={lat}&lon={lon}&appid={_apiKey}&units={_units}";
             var json = await _httpClient.GetStringAsync(url);
             var response = JsonSerializer.Deserialize<CurrentWeatherResponse>(json,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -53,7 +54,7 @@ namespace WeatherDashboard.Services
 
         public async Task<List<ForecastData>> GetForecastAsync(string cityName)
         {
-            var url = $"forecast?q={Uri.EscapeDataString(cityName)}&appid={_apiKey}&units=metric";
+            var url = $"forecast?q={Uri.EscapeDataString(cityName)}&appid={_apiKey}&units={_units}";
             var json = await _httpClient.GetStringAsync(url);
             var response = JsonSerializer.Deserialize<ForecastResponse>(json,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -66,7 +67,7 @@ namespace WeatherDashboard.Services
 
         public async Task<List<ForecastData>> GetForecastAsync(double lat, double lon)
         {
-            var url = $"forecast?lat={lat}&lon={lon}&appid={_apiKey}&units=metric";
+            var url = $"forecast?lat={lat}&lon={lon}&appid={_apiKey}&units={_units}";
             var json = await _httpClient.GetStringAsync(url);
             var response = JsonSerializer.Deserialize<ForecastResponse>(json,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });

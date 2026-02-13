@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using System;
-using System.Threading.Tasks;
+using WeatherDashboard.Data.Entities;
+using WeatherDashboard.Services.Interfaces;
 
 namespace WeatherDashboard.ViewModels
 {
@@ -8,6 +8,53 @@ namespace WeatherDashboard.ViewModels
     {
         private bool _isBusy;
         private string _errorMessage = string.Empty;
+
+        protected IDataService DataService { get; }
+        protected IApplicationStateService StateService { get; }
+
+        // Expose for binding - no backing field needed
+        public SavedLocation? SelectedLocation
+        {
+            get => StateService.SelectedLocation;
+            set
+            {
+                if (StateService.SelectedLocation != value)
+                {
+                    StateService.SelectedLocation = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public bool UseCelsius
+        {
+            get => StateService.UseCelsius;
+            set
+            {
+                if (StateService.UseCelsius != value)
+                {
+                    StateService.UseCelsius = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+
+        protected ViewModelBase(IDataService dataService, IApplicationStateService stateService)
+        {
+            DataService = dataService;
+            StateService = stateService;
+
+            StateService.SelectedLocationChanged += (s, location) =>
+            {
+                OnPropertyChanged(nameof(SelectedLocation));
+            };
+
+            StateService.TemperatureUnitChanged += (s, value) =>
+            {
+                OnPropertyChanged(nameof(UseCelsius));
+            };
+        }
 
         public bool IsBusy
         {
@@ -61,5 +108,7 @@ namespace WeatherDashboard.ViewModels
                 IsBusy = false;
             }
         }
+
+        public virtual async Task InitializeAsync() { }
     }
 }

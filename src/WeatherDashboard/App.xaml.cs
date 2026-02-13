@@ -1,10 +1,12 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System;
+using System.Threading.Tasks;
 using System.Windows;
 using WeatherDashboard.Data;
 using WeatherDashboard.Services;
 using WeatherDashboard.Services.Interfaces;
+using WeatherDashboard.Services.WeatherDashboard.Services;
 using WeatherDashboard.ViewModels;
 
 namespace WeatherDashboard
@@ -13,7 +15,7 @@ namespace WeatherDashboard
     {
         public IServiceProvider? ServiceProvider { get; private set; }
 
-        protected override void OnStartup(StartupEventArgs e)
+        protected override async void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
 
@@ -23,7 +25,20 @@ namespace WeatherDashboard
 
             InitializeDatabase();
 
-            var mainWindow = ServiceProvider.GetRequiredService<MainWindow>();
+            // Load default location BEFORE showing UI
+            using (var scope = ServiceProvider.CreateScope())
+            {
+                var dataService = scope.ServiceProvider.GetRequiredService<IDataService>();
+                var stateService = ServiceProvider.GetRequiredService<IApplicationStateService>();
+
+                var defaultLocation = await dataService.GetDefaultLocationAsync();
+                stateService.SelectedLocation = defaultLocation;
+
+                var unit = await dataService.GetSettingAsync("TemperatureUnit", "Celsius");
+                stateService.UseCelsius = unit == "Celsius";
+            }
+
+            var mainWindow = new MainWindow(ServiceProvider);
             mainWindow.Show();
         }
 
@@ -47,8 +62,10 @@ namespace WeatherDashboard
             });
 
             // Services
+            services.AddSingleton<IApplicationStateService, ApplicationStateService>();
             services.AddSingleton<IWeatherService, WeatherApiService>();
             services.AddScoped<IDataService, DataService>();
+            services.AddScoped<IReportService, ReportService>();
 
             // HttpClient for weather API
             services.AddHttpClient<IWeatherService, WeatherApiService>(client =>
@@ -59,6 +76,7 @@ namespace WeatherDashboard
 
             // ViewModels
             services.AddTransient<DashboardViewModel>();
+            services.AddTransient<HistoryViewModel>();  // NEW
 
             // Main Window
             services.AddSingleton<MainWindow>();
