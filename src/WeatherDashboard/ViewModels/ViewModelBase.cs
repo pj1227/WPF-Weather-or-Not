@@ -109,8 +109,6 @@ namespace WeatherDashboard.ViewModels
             }
         }
 
-        public virtual async Task InitializeAsync()
-        {
-        }
+        public virtual async Task InitializeAsync() { }
     }
 }

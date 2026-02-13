@@ -11,10 +11,9 @@ Weather Dashboard is your personal weather tracking application. This guide will
 1. [Getting Started](#getting-started)
 2. [Dashboard - Current Weather](#dashboard---current-weather)
 3. [History - Weather Trends](#history---weather-trends)
-4. [Settings & Preferences](#settings--preferences)
-5. [Exporting Reports](#exporting-reports)
-6. [Tips & Tricks](#tips--tricks)
-7. [Troubleshooting](#troubleshooting)
+4. [Exporting Reports](#exporting-reports)
+5. [Tips & Tricks](#tips--tricks)
+6. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -80,7 +79,7 @@ See the next 5 days at a glance:
 **Switch Between Saved Locations:**
 1. Click the dropdown next to the search box
 2. Select any saved location
-3. Weather updates automatically
+3. Weather and history data update automatically across all views
 
 **Refresh Current Data:**
 - Click the "Refresh" button
@@ -88,14 +87,16 @@ See the next 5 days at a glance:
 - Saved to your history
 
 **Change Temperature Units:**
-- Click the unit button (shows °C or °F)
-- All temperatures update immediately
-- Setting is saved for next time
+- Click the unit toggle button (shows °C or °F)
+- All temperatures update immediately across all views
+- Setting is saved automatically for next time
 
 **Set Default Location:**
-1. Select your preferred location
-2. Click "Set as Default Location"
-3. This location loads when you start the app
+1. Select your preferred location from dropdown
+2. Click "Set as Default Location" button
+3. Green confirmation message appears
+4. This location loads automatically on startup
+5. Saves time - no need to search each time
 
 ---
 
@@ -158,31 +159,6 @@ View and analyze your weather data over time with interactive charts.
 **Reset:**
 - Change date range to reset view
 - Or select different location
-
----
-
-## Settings & Preferences
-
-### Temperature Units
-
-**Celsius (°C) or Fahrenheit (°F):**
-- Click the unit button on Dashboard
-- Changes immediately
-- Affects all temperature displays
-- Saved between sessions
-
-### Default Location
-
-**Set Your Preferred Location:**
-1. Select a location from dropdown
-2. Click "Set as Default Location"
-3. Green confirmation message appears
-4. This location loads automatically on startup
-
-**Why Set a Default:**
-- Saves time - no need to search each time
-- Gets latest weather immediately
-- Your most-used location is always ready
 
 ---
 
