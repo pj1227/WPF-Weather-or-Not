@@ -1,0 +1,294 @@
+﻿<UserControl x:Class="WeatherDashboard.Views.HistoryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:scottplot="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.WPF"
+             mc:Ignorable="d" 
+             d:DesignHeight="700" d:DesignWidth="1000">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+
+        <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,15"/>
+        </Style>
+
+        <Style x:Key="CardStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Margin" Value="0,0,0,20"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="Black" Opacity="0.1" BlurRadius="10" ShadowDepth="2"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="Margin" Value="5,0"/>
+            <Setter Property="Background" Value="#3498db"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2980b9"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="#95a5a6"/>
+                    <Setter Property="Cursor" Value="Arrow"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header Section -->
+        <Border Grid.Row="0" Style="{StaticResource CardStyle}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Title and Buttons -->
+                <Grid Grid.Row="0" Margin="0,0,0,15">
+                    <TextBlock Text="Weather History" Style="{StaticResource SectionHeaderStyle}"/>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Export to PDF" 
+                                Command="{Binding ExportToPdfCommand}"
+                                Style="{StaticResource ButtonStyle}"
+                                IsEnabled="{Binding IsNotBusy}"/>
+                        <Button Content="Export to Excel" 
+                                Command="{Binding ExportToExcelCommand}"
+                                Style="{StaticResource ButtonStyle}"
+                                IsEnabled="{Binding IsNotBusy}"/>
+                        <Button Content="Refresh" 
+                                Command="{Binding LoadHistoryCommand}"
+                                Style="{StaticResource ButtonStyle}"
+                                IsEnabled="{Binding IsNotBusy}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Filters -->
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                        <TextBlock Text="Location" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                        <ComboBox ItemsSource="{Binding Locations}"
+                                  SelectedItem="{Binding SelectedLocation}"
+                                  DisplayMemberPath="Name"
+                                  Height="35"
+                                  FontSize="14"
+                                  IsEnabled="{Binding IsNotBusy}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Margin="0,0,15,0">
+                        <TextBlock Text="Start Date" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                        <DatePicker SelectedDate="{Binding StartDate}"
+                                    Height="35"
+                                    FontSize="14"
+                                    IsEnabled="{Binding IsNotBusy}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="End Date" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                        <DatePicker SelectedDate="{Binding EndDate}"
+                                    Height="35"
+                                    FontSize="14"
+                                    IsEnabled="{Binding IsNotBusy}"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- Content Section -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="0,10,0,0">
+
+                <!-- Temperature Chart -->
+                <Border Style="{StaticResource CardStyle}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="350"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" 
+                                   Text="Temperature Trends" 
+                                   Style="{StaticResource SectionHeaderStyle}"/>
+
+                        <scottplot:WpfPlot Grid.Row="1" 
+                                           x:Name="TemperatureChart"/>
+                    </Grid>
+                </Border>
+
+                <!-- Humidity Chart -->
+                <Border Style="{StaticResource CardStyle}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="300"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" 
+                                   Text="Humidity Trends" 
+                                   Style="{StaticResource SectionHeaderStyle}"/>
+
+                        <scottplot:WpfPlot Grid.Row="1" 
+                                           x:Name="HumidityChart"/>
+                    </Grid>
+                </Border>
+
+                <!-- Statistics Summary -->
+                <Border Style="{StaticResource CardStyle}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" 
+                                   Text="Statistics Summary" 
+                                   Style="{StaticResource SectionHeaderStyle}"/>
+
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Average Temperature" 
+                                           FontSize="12" 
+                                           Foreground="Gray" 
+                                           Margin="0,0,0,5"/>
+                                <TextBlock Text="{Binding AverageTemperature, StringFormat='{}{0:F1}°'}"
+                                           FontSize="24" 
+                                           FontWeight="Bold"
+                                           Foreground="#3498db"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Maximum Temperature" 
+                                           FontSize="12" 
+                                           Foreground="Gray" 
+                                           Margin="0,0,0,5"/>
+                                <TextBlock Text="{Binding MaxTemperature, StringFormat='{}{0:F1}°'}"
+                                           FontSize="24" 
+                                           FontWeight="Bold"
+                                           Foreground="#e74c3c"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Minimum Temperature" 
+                                           FontSize="12" 
+                                           Foreground="Gray" 
+                                           Margin="0,0,0,5"/>
+                                <TextBlock Text="{Binding MinTemperature, StringFormat='{}{0:F1}°'}"
+                                           FontSize="24" 
+                                           FontWeight="Bold"
+                                           Foreground="#3498db"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="3">
+                                <TextBlock Text="Average Humidity" 
+                                           FontSize="12" 
+                                           Foreground="Gray" 
+                                           Margin="0,0,0,5"/>
+                                <TextBlock Text="{Binding AverageHumidity, StringFormat='{}{0:F0}%'}"
+                                           FontSize="24" 
+                                           FontWeight="Bold"
+                                           Foreground="#9b59b6"/>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Loading Overlay -->
+        <Grid Grid.RowSpan="2" 
+              Background="#80000000" 
+              Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" 
+                             Width="200" 
+                             Height="4"
+                             Margin="0,0,0,15"/>
+                <TextBlock Text="Loading weather history..." 
+                           Foreground="White" 
+                           FontSize="16"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Success Message -->
+        <Border Grid.Row="0"
+                Background="#27ae60" 
+                Padding="15"
+                VerticalAlignment="Top"
+                Margin="0,10,0,0"
+                Visibility="{Binding HasSuccess, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="✓ " 
+                           Foreground="White" 
+                           FontSize="16" 
+                           FontWeight="Bold"/>
+                <TextBlock Text="{Binding SuccessMessage}" 
+                           Foreground="White" 
+                           FontSize="14"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Error Message -->
+        <Border Grid.Row="0"
+                Background="#e74c3c" 
+                Padding="15"
+                VerticalAlignment="Top"
+                Margin="0,10,0,0"
+                Visibility="{Binding HasError, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="⚠ " 
+                           Foreground="White" 
+                           FontSize="16" 
+                           FontWeight="Bold"/>
+                <TextBlock Text="{Binding ErrorMessage}" 
+                           Foreground="White" 
+                           FontSize="14"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>
