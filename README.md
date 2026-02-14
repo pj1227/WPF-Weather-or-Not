@@ -171,19 +171,19 @@ For detailed documentation, see [State Management Pattern](docs/STATE_MANAGEMENT
 ```
 WeatherDashboard/
 ├── Data/
-│   ├── Entities/          # Database models
-│   ├── WeatherDbContext   # EF Core context
-│   └── Migrations/        # Database migrations
-├── Models/                # Domain models
-├── Services/
-│   ├── Interfaces/        # Service contracts
-│   ├── WeatherApiService  # API integration
-│   ├── DataService        # Database operations
-│   ├── ReportService      # PDF/Excel generation
+│   ├── Entities/                # Database models
+│   ├── WeatherDbContext         # EF Core context
+│   └── Migrations/              # Database migrations
+├── Models/                      # Domain models
+├── Services/     
+│   ├── Interfaces/              # Service contracts
+│   ├── WeatherApiService        # API integration
+│   ├── DataService              # Database operations
+│   ├── ReportService            # PDF/Excel generation
 │   └── ApplicationStateService  # Shared state management
-├── ViewModels/            # MVVM view models
-├── Views/                 # XAML user controls
-└── Converters/            # Value converters
+├── ViewModels/                  # MVVM view models
+├── Views/                       # XAML user controls
+└── Converters/                  # Value converters
 ```
 
 ### Design Patterns
