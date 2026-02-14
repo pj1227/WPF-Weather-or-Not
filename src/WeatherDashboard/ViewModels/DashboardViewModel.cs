@@ -54,6 +54,14 @@ namespace WeatherDashboard.ViewModels
         {
             _weatherService = weatherService;
 
+            PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(IsBusy))
+                {
+                    SearchLocationCommand.NotifyCanExecuteChanged();
+                }
+            };
+
             // Subscribe to location changes for this VM's specific logic
             StateService.SelectedLocationChanged += async (s, location) =>
             {
@@ -85,15 +93,13 @@ namespace WeatherDashboard.ViewModels
                 var allLocations = await DataService.GetAllLocationsAsync();
                 Locations = new ObservableCollection<SavedLocation>(allLocations);
 
-                var current = SelectedLocation;
-                SelectedLocation = null;
-                SelectedLocation = current;
-
             }, "Failed to initialize dashboard");
 
             // Load weather if location already set
             if (SelectedLocation != null)
             {
+                // fixes issue where the SavedLocation instance in the list is not the same object reference as StateService.SelectedLocation
+                SelectedLocation = Locations.FirstOrDefault(l => l.Id == SelectedLocation.Id);
                 await LoadWeatherAsync();
             }
         }
@@ -238,5 +244,11 @@ namespace WeatherDashboard.ViewModels
             OnPropertyChanged(nameof(FormattedTemperature));
             OnPropertyChanged(nameof(FormattedFeelsLike));
         }
+
+        partial void OnSearchTextChanged(string value)
+        {
+            SearchLocationCommand.NotifyCanExecuteChanged();
+        }
+
     }
 }
