@@ -125,53 +125,17 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Temperature Unit Toggle -->
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,20,0">
-                        <TextBlock Text="Units:" 
-                           VerticalAlignment="Center" 
-                           Margin="0,0,10,0"
-                           FontWeight="SemiBold"/>
-                        <Button Content="{Binding UseCelsius, Converter={StaticResource TempUnitConverter}}"
-                        Command="{Binding ToggleTemperatureUnitCommand}"
-                        Width="80"
-                        Height="32"
-                        Background="#9b59b6"
-                        Foreground="White"
-                        BorderThickness="0"
-                        Cursor="Hand"
-                        FontSize="14">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Border Background="{TemplateBinding Background}"
-                                    CornerRadius="4"
-                                    Padding="10,5">
-                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-                                </ControlTemplate>
-                            </Button.Template>
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#8e44ad"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
-                    </StackPanel>
-
                     <!-- Set Default Location -->
-                    <Button Grid.Column="1"
-                    Content="Set as Default Location"
-                    Command="{Binding SetDefaultLocationCommand}"
-                    Padding="15,8"
-                    Background="#27ae60"
-                    Foreground="White"
-                    BorderThickness="0"
-                    Cursor="Hand"
-                    FontSize="13"
-                    IsEnabled="{Binding SelectedLocation, Converter={StaticResource NullToBoolConverter}}">
+                    <Button Grid.Column="0"
+                            Content="Set as Default Location"
+                            Command="{Binding SetDefaultLocationCommand}"
+                            Padding="15,8"
+                            Background="#27ae60"
+                            Foreground="White"
+                            BorderThickness="0"
+                            Cursor="Hand"
+                            FontSize="13"
+                            IsEnabled="{Binding SelectedLocation, Converter={StaticResource NullToBoolConverter}}">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border Background="{TemplateBinding Background}"
@@ -326,15 +290,9 @@
                                                         Orientation="Horizontal" 
                                                         HorizontalAlignment="Right"
                                                         VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding TempMax, StringFormat='{}{0:F0}°'}" 
-                                                           FontWeight="Bold"
-                                                           FontSize="16"/>
-                                                <TextBlock Text=" / " 
-                                                           Foreground="Gray"
-                                                           Margin="5,0"/>
-                                                <TextBlock Text="{Binding TempMin, StringFormat='{}{0:F0}°'}" 
-                                                           Foreground="Gray"
-                                                           FontSize="16"/>
+                                                <TextBlock Text="{Binding TempMaxDisplay, StringFormat='{}{0:F0}°'}"/>
+                                                <TextBlock Text=" / " Foreground="Gray" Margin="5,0"/>
+                                                <TextBlock Text="{Binding TempMinDisplay, StringFormat='{}{0:F0}°'}"/>
                                             </StackPanel>
                                         </Grid>
                                     </Border>

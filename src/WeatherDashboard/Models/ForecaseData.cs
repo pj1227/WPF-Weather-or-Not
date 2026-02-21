@@ -1,8 +1,8 @@
-using System;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace WeatherDashboard.Models
 {
-    public class ForecastData
+    public partial class ForecastData : ObservableObject
     {
         public DateTime Date { get; set; }
         public double TempMax { get; set; }
@@ -11,5 +11,11 @@ namespace WeatherDashboard.Models
         public string IconCode { get; set; } = string.Empty;
         public double Humidity { get; set; }
         public double WindSpeed { get; set; }
+
+        [ObservableProperty]
+        private double _tempMaxDisplay;
+
+        [ObservableProperty]
+        private double _tempMinDisplay;
     }
 }

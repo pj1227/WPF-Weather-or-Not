@@ -4,13 +4,9 @@ using WeatherDashboard.Data.Entities;
 
 namespace WeatherDashboard.Services.Interfaces
 {
-    public interface IApplicationStateService
+    public interface IApplicationStateService : INotifyPropertyChanged
     {
         SavedLocation? SelectedLocation { get; set; }
-        event EventHandler<SavedLocation?> SelectedLocationChanged;
-
         bool UseCelsius { get; set; }
-        event EventHandler<bool> TemperatureUnitChanged;
     }
-
 }
