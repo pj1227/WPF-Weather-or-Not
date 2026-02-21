@@ -54,25 +54,91 @@
         <!-- Navigation Sidebar -->
         <Border Grid.Column="0" Background="#2C3E50" Padding="10">
             <StackPanel>
-                <TextBlock Text="Weather Dashboard" 
-                          FontSize="18" 
-                          FontWeight="Bold" 
-                          Foreground="White" 
-                          Margin="10,10,10,30"
-                          TextWrapping="Wrap"/>
 
+                <!-- App Title -->
+                <TextBlock Text="Weather Dashboard" 
+                  FontSize="18" 
+                  FontWeight="Bold" 
+                  Foreground="White" 
+                  Margin="10,10,10,30"
+                  TextWrapping="Wrap"/>
+
+                <!-- Navigation Buttons -->
                 <RadioButton x:Name="DashboardButton"
-                            Content="📊 Dashboard" 
-                            Style="{StaticResource NavButtonStyle}"
-                            IsChecked="True"
-                            Checked="NavButton_Checked"/>
+                    Content="📊 Dashboard" 
+                    Style="{StaticResource NavButtonStyle}"
+                    IsChecked="True"
+                    Checked="NavButton_Checked"/>
 
                 <RadioButton x:Name="HistoryButton"
-                            Content="📈 History" 
-                            Style="{StaticResource NavButtonStyle}"
-                            Checked="NavButton_Checked"/>
+                    Content="📈 History" 
+                    Style="{StaticResource NavButtonStyle}"
+                    Checked="NavButton_Checked"/>
+
+                <!-- Spacer -->
+                <Border Height="40" Background="Transparent"/>
+
+                <!-- Temperature Unit Section -->
+                <TextBlock Text="Temperature Unit"
+                   Foreground="White"
+                   FontSize="14"
+                   Margin="10,0,0,8"/>
+
+                <ToggleButton IsChecked="{Binding UseCelsius, Mode=TwoWay}"
+                      Height="32"
+                      Margin="10,0,10,0"
+                      Background="#34495e"
+                      Foreground="White"
+                      BorderThickness="0">
+                    <ToggleButton.Template>
+                        <ControlTemplate TargetType="ToggleButton">
+                            <Border Background="{TemplateBinding Background}"
+                            CornerRadius="16"
+                            Padding="2">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition/>
+                                        <ColumnDefinition/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Sliding Indicator -->
+                                    <Border x:Name="Indicator"
+                                    Grid.Column="0"
+                                    Background="White"
+                                    CornerRadius="14"
+                                    Margin="2"/>
+
+                                    <!-- Labels -->
+                                    <TextBlock Text="°C"
+                                       Grid.Column="0"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Foreground="#2C3E50"
+                                       FontWeight="Bold"/>
+
+                                    <TextBlock Text="°F"
+                                       Grid.Column="1"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Foreground="#2C3E50"
+                                       FontWeight="Bold"/>
+                                </Grid>
+                            </Border>
+
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="False">
+                                    <Setter TargetName="Indicator"
+                                    Property="Grid.Column"
+                                    Value="1"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </ToggleButton.Template>
+                </ToggleButton>
+
             </StackPanel>
         </Border>
+
 
         <!-- Content Area -->
         <ContentControl x:Name="ContentArea" Grid.Column="1" Margin="20"/>

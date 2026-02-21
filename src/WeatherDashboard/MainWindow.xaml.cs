@@ -12,10 +12,11 @@ namespace WeatherDashboard
         private readonly IServiceProvider _serviceProvider;
         private bool _isInitialized = false;
 
-        public MainWindow(IServiceProvider serviceProvider)
+        public MainWindow(IServiceProvider serviceProvider, ShellViewModel vm)
         {
             _serviceProvider = serviceProvider;
             InitializeComponent();
+            DataContext = vm;
             _isInitialized = true;
 
             // Show dashboard after initialization

@@ -4,6 +4,7 @@ using ScottPlot;
 using System.Collections.ObjectModel;
 using System.IO;
 using WeatherDashboard.Data.Entities;
+using WeatherDashboard.Helpers;
 using WeatherDashboard.Services.Interfaces;
 
 namespace WeatherDashboard.ViewModels
@@ -42,13 +43,6 @@ namespace WeatherDashboard.ViewModels
             : base(dataService, stateService)
         {
             _reportService = reportService;
-
-            // Subscribe to changes
-            StateService.SelectedLocationChanged += async (s, location) =>
-            {
-                if (location != null && !IsBusy)
-                    await LoadHistoryAsync();
-            };
         }
 
         public override async Task InitializeAsync()
@@ -113,12 +107,17 @@ namespace WeatherDashboard.ViewModels
             }
 
             var dates = WeatherHistory.Select(r => r.Timestamp.ToOADate()).ToArray();
-            var temps = WeatherHistory.Select(r =>
-                UseCelsius ? r.Temperature : CelsiusToFahrenheit(r.Temperature)
-            ).ToArray();
-            var feelsLike = WeatherHistory.Select(r =>
-                UseCelsius ? r.FeelsLike : CelsiusToFahrenheit(r.FeelsLike)
-            ).ToArray();
+
+            var temps = WeatherHistory.Select(r => StateService.UseCelsius
+            ? r.Temperature
+            : TemperatureFormatter.ToFahrenheit(r.Temperature))
+                .ToArray();
+
+            var feelsLike = WeatherHistory.Select(r => StateService.UseCelsius
+            ? r.FeelsLike
+            : TemperatureFormatter.ToFahrenheit(r.FeelsLike))
+                .ToArray();
+
 
             var tempScatter = plot.Add.Scatter(dates, temps);
             tempScatter.Label = "Temperature";
@@ -135,7 +134,7 @@ namespace WeatherDashboard.ViewModels
 
             plot.Axes.DateTimeTicksBottom();
             plot.XLabel("Date");
-            plot.YLabel($"Temperature (°{(UseCelsius ? "C" : "F")})");
+            plot.YLabel(StateService.UseCelsius ? "Temperature (°C)" : "Temperature (°F)");
             plot.Title($"Temperature History - {SelectedLocation?.Name}");
             plot.ShowLegend(Alignment.UpperLeft);
             plot.Axes.Color(Colors.Gray);
@@ -276,14 +275,35 @@ namespace WeatherDashboard.ViewModels
             OnPropertyChanged(nameof(AverageHumidity));
         }
 
-        private double CelsiusToFahrenheit(double celsius)
+        protected override void OnTemperatureUnitChanged()
         {
-            return (celsius * 9 / 5) + 32;
+            UpdateTemperatureChart();
+
+            OnPropertyChanged(nameof(AverageTemperature));
+            OnPropertyChanged(nameof(MaxTemperature));
+            OnPropertyChanged(nameof(MinTemperature));
         }
 
-        public double AverageTemperature => WeatherHistory.Any() ? WeatherHistory.Average(r => r.Temperature) : 0;
-        public double MaxTemperature => WeatherHistory.Any() ? WeatherHistory.Max(r => r.Temperature) : 0;
-        public double MinTemperature => WeatherHistory.Any() ? WeatherHistory.Min(r => r.Temperature) : 0;
+        private double ConvertTemp(double celsius)
+        {
+            return StateService.UseCelsius
+                ? celsius
+                : TemperatureFormatter.ToFahrenheit(celsius);
+        }
+
+
+        public double AverageTemperature => WeatherHistory.Any()
+            ? ConvertTemp(WeatherHistory.Average(r => r.Temperature))
+            : 0;
+
+        public double MaxTemperature => WeatherHistory.Any()
+            ? ConvertTemp(WeatherHistory.Max(r => r.Temperature))
+            : 0;
+
+        public double MinTemperature => WeatherHistory.Any()
+            ? ConvertTemp(WeatherHistory.Min(r => r.Temperature))
+            : 0;
+
         public double AverageHumidity => WeatherHistory.Any() ? WeatherHistory.Average(r => r.Humidity) : 0;
     }
 }

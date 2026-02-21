@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using System.ComponentModel;
 using WeatherDashboard.Data.Entities;
 using WeatherDashboard.Services.Interfaces;
 
@@ -12,7 +13,6 @@ namespace WeatherDashboard.ViewModels
         protected IDataService DataService { get; }
         protected IApplicationStateService StateService { get; }
 
-        // Expose for binding - no backing field needed
         public SavedLocation? SelectedLocation
         {
             get => StateService.SelectedLocation;
@@ -45,15 +45,7 @@ namespace WeatherDashboard.ViewModels
             DataService = dataService;
             StateService = stateService;
 
-            StateService.SelectedLocationChanged += (s, location) =>
-            {
-                OnPropertyChanged(nameof(SelectedLocation));
-            };
-
-            StateService.TemperatureUnitChanged += (s, value) =>
-            {
-                OnPropertyChanged(nameof(UseCelsius));
-            };
+            StateService.PropertyChanged += StateService_PropertyChanged;
         }
 
         public bool IsBusy
@@ -109,6 +101,24 @@ namespace WeatherDashboard.ViewModels
             }
         }
 
+        private void StateService_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(StateService.SelectedLocation))
+            {
+                OnPropertyChanged(nameof(SelectedLocation));
+                OnSelectedLocationChanged();
+            }
+
+            if (e.PropertyName == nameof(StateService.UseCelsius))
+            {
+                OnPropertyChanged(nameof(UseCelsius));
+                OnTemperatureUnitChanged();
+            }
+        }
+
         public virtual async Task InitializeAsync() { }
+
+        protected virtual void OnSelectedLocationChanged() { }
+        protected virtual void OnTemperatureUnitChanged() { }
     }
 }

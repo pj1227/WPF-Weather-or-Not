@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
 using WeatherDashboard.Data.Entities;
+using WeatherDashboard.Helpers;
 using WeatherDashboard.Models;
 using WeatherDashboard.Services.Interfaces;
 
@@ -31,9 +32,7 @@ namespace WeatherDashboard.ViewModels
             get
             {
                 if (CurrentWeather == null) return "--°";
-                var temp = UseCelsius ? CurrentWeather.Temperature : (CurrentWeather.Temperature * 9 / 5) + 32;
-                var unit = UseCelsius ? "C" : "F";
-                return $"{temp:F1}°{unit}";
+                return TemperatureFormatter.Format(CurrentWeather.Temperature, StateService.UseCelsius);
             }
         }
 
@@ -42,8 +41,7 @@ namespace WeatherDashboard.ViewModels
             get
             {
                 if (CurrentWeather == null) return "--°";
-                var temp = UseCelsius ? CurrentWeather.FeelsLike : (CurrentWeather.FeelsLike * 9 / 5) + 32;
-                return $"{temp:F1}°";
+                return TemperatureFormatter.Format(CurrentWeather.FeelsLike, StateService.UseCelsius);
             }
         }
 
@@ -61,21 +59,6 @@ namespace WeatherDashboard.ViewModels
                     SearchLocationCommand.NotifyCanExecuteChanged();
                 }
             };
-
-            // Subscribe to location changes for this VM's specific logic
-            StateService.SelectedLocationChanged += async (s, location) =>
-            {
-                if (location != null && !IsBusy)
-                    await LoadWeatherAsync();
-            };
-            // subscribe to temperature unit changes
-            StateService.TemperatureUnitChanged += (s, value) =>
-            {
-                OnPropertyChanged(nameof(UseCelsius));
-                OnPropertyChanged(nameof(FormattedTemperature));
-                OnPropertyChanged(nameof(FormattedFeelsLike));
-            };
-
         }
 
         public override async Task InitializeAsync()
@@ -125,7 +108,23 @@ namespace WeatherDashboard.ViewModels
                     SelectedLocation.Latitude,
                     SelectedLocation.Longitude);
 
-                Forecast = new ObservableCollection<ForecastData>(forecastList);
+                Forecast = new ObservableCollection<ForecastData>(
+                    forecastList.Select(f => new ForecastData
+                    {
+                        Date = f.Date,
+                        TempMax = f.TempMax,
+                        TempMin = f.TempMin,
+                        Description = f.Description,
+                        IconCode = f.IconCode,
+                        Humidity = f.Humidity,
+                        WindSpeed = f.WindSpeed,
+                        TempMaxDisplay = StateService.UseCelsius
+                            ? f.TempMax
+                            : TemperatureFormatter.ToFahrenheit(f.TempMax),
+                        TempMinDisplay = StateService.UseCelsius
+                            ? f.TempMin
+                            : TemperatureFormatter.ToFahrenheit(f.TempMin)
+                    }));
 
                 // Save to database
                 var record = new WeatherRecord
@@ -238,6 +237,24 @@ namespace WeatherDashboard.ViewModels
                 return $"{fahrenheit:F1}°F";
             }
         }
+
+        protected override void OnTemperatureUnitChanged()
+        {
+            OnPropertyChanged(nameof(FormattedTemperature));
+            OnPropertyChanged(nameof(FormattedFeelsLike));
+
+            foreach (var item in Forecast)
+            {
+                item.TempMaxDisplay = StateService.UseCelsius
+                    ? item.TempMax
+                    : TemperatureFormatter.ToFahrenheit(item.TempMax);
+
+                item.TempMinDisplay = StateService.UseCelsius
+                    ? item.TempMin
+                    : TemperatureFormatter.ToFahrenheit(item.TempMin);
+            }
+        }
+
 
         partial void OnCurrentWeatherChanged(WeatherData? value)
         {

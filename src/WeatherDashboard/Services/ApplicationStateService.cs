@@ -7,7 +7,7 @@ using WeatherDashboard.Services.Interfaces;
 
 namespace WeatherDashboard.Services
 {
-    public class ApplicationStateService : IApplicationStateService
+    public class ApplicationStateService : ObservableObject, IApplicationStateService
     {
         // backing properties
         private SavedLocation? _selectedLocation;
@@ -17,31 +17,13 @@ namespace WeatherDashboard.Services
         public SavedLocation? SelectedLocation
         {
             get => _selectedLocation;
-            set
-            {
-                if (_selectedLocation != value)
-                {
-                    _selectedLocation = value;
-                    SelectedLocationChanged?.Invoke(this, value);
-                }
-            }
+            set => SetProperty(ref _selectedLocation, value);
         }
         public bool UseCelsius
         {
             get => _useCelsius;
-            set
-            {
-                if (_useCelsius != value)
-                {
-                    _useCelsius = value;
-                    TemperatureUnitChanged?.Invoke(this, value);
-                }
-            }
+            set => SetProperty(ref _useCelsius, value);
         }
-
-        // event handlers 
-        public event EventHandler<SavedLocation?>? SelectedLocationChanged;
-        public event EventHandler<bool>? TemperatureUnitChanged;
     }
 }
 

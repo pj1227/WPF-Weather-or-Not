@@ -37,7 +37,7 @@ namespace WeatherDashboard
                 stateService.UseCelsius = unit == "Celsius";
             }
 
-            var mainWindow = new MainWindow(ServiceProvider);
+            var mainWindow = ServiceProvider.GetRequiredService<MainWindow>();
             mainWindow.Show();
         }
 
@@ -74,8 +74,9 @@ namespace WeatherDashboard
             });
 
             // ViewModels
-            services.AddTransient<DashboardViewModel>();
-            services.AddTransient<HistoryViewModel>();  // NEW
+            services.AddSingleton<DashboardViewModel>();
+            services.AddSingleton<HistoryViewModel>();
+            services.AddSingleton<ShellViewModel>();
 
             // Main Window
             services.AddSingleton<MainWindow>();
