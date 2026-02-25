@@ -12,7 +12,6 @@ namespace WeatherDashboard.ViewModels
     public partial class HistoryViewModel : ViewModelBase
     {
         private readonly IReportService _reportService;
-        private bool _isInitialized = false;
 
         [ObservableProperty]
         private ObservableCollection<SavedLocation> _locations = new();
@@ -33,7 +32,7 @@ namespace WeatherDashboard.ViewModels
         private Plot _humidityPlot = new Plot();
 
         [ObservableProperty]
-        private string _successMessage = string.Empty; 
+        private string _successMessage = string.Empty;
 
         public bool HasSuccess => !string.IsNullOrEmpty(SuccessMessage);
 
@@ -109,15 +108,14 @@ namespace WeatherDashboard.ViewModels
             var dates = WeatherHistory.Select(r => r.Timestamp.ToOADate()).ToArray();
 
             var temps = WeatherHistory.Select(r => StateService.UseCelsius
-            ? r.Temperature
-            : TemperatureFormatter.ToFahrenheit(r.Temperature))
+                ? r.Temperature
+                : TemperatureFormatter.ToFahrenheit(r.Temperature))
                 .ToArray();
 
             var feelsLike = WeatherHistory.Select(r => StateService.UseCelsius
-            ? r.FeelsLike
-            : TemperatureFormatter.ToFahrenheit(r.FeelsLike))
+                ? r.FeelsLike
+                : TemperatureFormatter.ToFahrenheit(r.FeelsLike))
                 .ToArray();
-
 
             var tempScatter = plot.Add.Scatter(dates, temps);
             tempScatter.Label = "Temperature";
@@ -134,7 +132,7 @@ namespace WeatherDashboard.ViewModels
 
             plot.Axes.DateTimeTicksBottom();
             plot.XLabel("Date");
-            plot.YLabel(StateService.UseCelsius ? "Temperature (°C)" : "Temperature (°F)");
+            plot.YLabel(StateService.UseCelsius ? "Temperature (\u00b0C)" : "Temperature (\u00b0F)");
             plot.Title($"Temperature History - {SelectedLocation?.Name}");
             plot.ShowLegend(Alignment.UpperLeft);
             plot.Axes.Color(Colors.Gray);
@@ -268,7 +266,6 @@ namespace WeatherDashboard.ViewModels
 
         partial void OnWeatherHistoryChanged(List<WeatherRecord> value)
         {
-            // Notify that statistics have changed
             OnPropertyChanged(nameof(AverageTemperature));
             OnPropertyChanged(nameof(MaxTemperature));
             OnPropertyChanged(nameof(MinTemperature));
@@ -291,19 +288,16 @@ namespace WeatherDashboard.ViewModels
                 : TemperatureFormatter.ToFahrenheit(celsius);
         }
 
-
         public double AverageTemperature => WeatherHistory.Any()
-            ? ConvertTemp(WeatherHistory.Average(r => r.Temperature))
-            : 0;
+            ? ConvertTemp(WeatherHistory.Average(r => r.Temperature)) : 0;
 
         public double MaxTemperature => WeatherHistory.Any()
-            ? ConvertTemp(WeatherHistory.Max(r => r.Temperature))
-            : 0;
+            ? ConvertTemp(WeatherHistory.Max(r => r.Temperature)) : 0;
 
         public double MinTemperature => WeatherHistory.Any()
-            ? ConvertTemp(WeatherHistory.Min(r => r.Temperature))
-            : 0;
+            ? ConvertTemp(WeatherHistory.Min(r => r.Temperature)) : 0;
 
-        public double AverageHumidity => WeatherHistory.Any() ? WeatherHistory.Average(r => r.Humidity) : 0;
+        public double AverageHumidity => WeatherHistory.Any()
+            ? WeatherHistory.Average(r => r.Humidity) : 0;
     }
 }

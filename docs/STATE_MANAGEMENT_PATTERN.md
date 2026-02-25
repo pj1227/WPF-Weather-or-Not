@@ -1,592 +1,351 @@
-# State Management Pattern - Weather Dashboard
-## Singleton Service with Property Delegation
+# State Management Pattern
 
-**Pattern:** Shared State Service  
-**Implementation:** ApplicationStateService (Singleton) + ViewModelBase (Delegation)  
-**Result:** Automatic synchronization across ViewModels
+This document describes the singleton state management architecture used in Weather Dashboard, covering both shared location state and the global temperature unit toggle.
 
 ---
 
-## 📋 The Problem
+## The Problem
 
-In multi-view WPF applications, ViewModels often need to share state:
+In a multi-view WPF application using MVVM and dependency injection, two pieces of state must be consistent across all views:
 
-```
-❌ Problem: Duplicate State
-
-DashboardViewModel               HistoryViewModel
-├── SelectedLocation: "Billings"  ├── SelectedLocation: "Missoula"
-└── UseCelsius: true             └── UseCelsius: false
-
-User selects location in Dashboard → History still shows old location
-User toggles temperature unit → Other views don't update
-```
-
-**Issues:**
-- State gets out of sync
-- Poor user experience (must reselect in each view)
-- Code duplication
-- Manual synchronization logic needed
+1. **Selected Location** — Dashboard and History must always show data for the same city
+2. **Temperature Unit (°C / °F)** — Every temperature value in every view must reflect the same preference, and the toggle must be operable from anywhere without navigating to a specific view
 
 ---
 
-## ✅ The Solution
+## The Solution: Singleton State Service + INotifyPropertyChanged
 
-**Singleton State Service with Property Delegation:**
-
-```
-ApplicationStateService (Singleton - ONE instance)
-        ↑                           ↑
-        |                           |
-DashboardViewModel          HistoryViewModel
-(both reference same service instance)
-```
-
-### Architecture
+A singleton `ApplicationStateService` acts as the single source of truth. It propagates changes through the standard `INotifyPropertyChanged` mechanism — no custom events required.
 
 ```
-┌─────────────────────────────────────────────┐
-│           XAML Views                        │
-│  <ComboBox SelectedItem="{Binding           │
-│             SelectedLocation}" />           │
-└────────────┬────────────────────────────────┘
-             ↓ Binding
-┌────────────────────────────────────────────┐
-│      ViewModels (Transient)                │
-│                                            │
-│  public SavedLocation? SelectedLocation    │
-│  {                                         │
-│      get => StateService.SelectedLocation; │ ← Delegates to service
-│      set => StateService.SelectedLocation  │
-│             = value;                       │
-│  }                                         │
-└────────────┬───────────────────────────────┘
-             ↓ Delegates
-┌────────────────────────────────────────────┐
-│  ApplicationStateService (Singleton)       │
-│                                            │
-│  private SavedLocation? _selectedLocation; │
-│                                            │
-│  public SavedLocation? SelectedLocation    │
-│  {                                         │
-│      set {                                 │
-│          _selectedLocation = value;        │
-│          SelectedLocationChanged           │
-│              ?.Invoke(this, value);        │ ← Fires event
-│      }                                     │
-│  }                                         │
-│                                            │
-│  public event EventHandler<SavedLocation>  │
-│      SelectedLocationChanged;              │
-└────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│                    MainWindow (Shell)                     │
+│  ┌────────────────────────────────────────────────────┐   │
+│  │  Navigation Sidebar (200px)                        │   │
+│  │  • 📊 Dashboard RadioButton → NavButton_Checked    │   │
+│  │  • 📈 History   RadioButton → NavButton_Checked    │   │
+│  │  • °C/°F ToggleButton → UseCelsius (TwoWay)        │   │
+│  └────────────────────────────────────────────────────┘   │
+│  ┌────────────────────────────────────────────────────┐   │
+│  │  ContentControl x:Name="ContentArea"               │   │
+│  │  Content set in NavButton_Checked code-behind      │   │
+│  └────────────────────────────────────────────────────┘   │
+└───────────────────────────────────────────────────────────┘
+         ↕ DataBinding              ↕ DataBinding
+┌─────────────────────┐    ┌────────────────────────────────┐
+│   ShellViewModel    │    │  DashboardViewModel            │
+│   (Singleton)       │    │  HistoryViewModel              │
+│   • UseCelsius ─────┤    │  (both Singleton)              │
+│     delegates to    │    │  • UseCelsius (delegated)      │
+│     StateService    │    │  • OnTemperatureUnitChanged()  │
+└──────────┬──────────┘    └────────────────┬───────────────┘
+           │                                │
+           │        PropertyChanged         │
+           └────────────────┬───────────────┘
+                            ▼
+         ┌──────────────────────────────────────┐
+         │       ApplicationStateService        │  ← Singleton
+         │       (ObservableObject)             │
+         │                                      │
+         │   bool UseCelsius                    │
+         │   SavedLocation? SelectedLocation    │
+         │                                      │
+         │   PropertyChanged fires via          │
+         │   CommunityToolkit SetProperty()     │
+         └──────────────────────────────────────┘
 ```
 
 ---
 
-## 💻 Implementation
+## Components
 
-### 1. ApplicationStateService.cs
+### IApplicationStateService
 
 ```csharp
-using System;
-using WeatherDashboard.Data.Entities;
-using WeatherDashboard.Services.Interfaces;
-
-namespace WeatherDashboard.Services
+public interface IApplicationStateService : INotifyPropertyChanged
 {
-    public class ApplicationStateService : IApplicationStateService
+    SavedLocation? SelectedLocation { get; set; }
+    bool UseCelsius { get; set; }
+}
+```
+
+Extends `INotifyPropertyChanged` — that's the complete signalling contract. No custom events. Subscribers use the standard `PropertyChanged` event with a property name check.
+
+### ApplicationStateService
+
+```csharp
+public class ApplicationStateService : ObservableObject, IApplicationStateService
+{
+    private SavedLocation? _selectedLocation;
+    private bool _useCelsius = true;
+
+    public SavedLocation? SelectedLocation
     {
-        // Backing fields
-        private SavedLocation? _selectedLocation;
-        private bool _useCelsius = true;
+        get => _selectedLocation;
+        set => SetProperty(ref _selectedLocation, value);
+    }
 
-        // Public state properties
-        public SavedLocation? SelectedLocation
-        {
-            get => _selectedLocation;
-            set
-            {
-                if (_selectedLocation != value)
-                {
-                    _selectedLocation = value;
-                    SelectedLocationChanged?.Invoke(this, value);
-                }
-            }
-        }
-
-        public bool UseCelsius
-        {
-            get => _useCelsius;
-            set
-            {
-                if (_useCelsius != value)
-                {
-                    _useCelsius = value;
-                    TemperatureUnitChanged?.Invoke(this, value);
-                }
-            }
-        }
-
-        // Event notifications
-        public event EventHandler<SavedLocation?>? SelectedLocationChanged;
-        public event EventHandler<bool>? TemperatureUnitChanged;
+    public bool UseCelsius
+    {
+        get => _useCelsius;
+        set => SetProperty(ref _useCelsius, value);
     }
 }
 ```
 
-**Key Points:**
-- Simple property implementation
-- Fires custom events (not INotifyPropertyChanged)
-- No persistence logic (handled elsewhere)
-- Lightweight state holder only
+Deliberately minimal. `SetProperty` handles change detection and fires `PropertyChanged`. No custom events, no additional methods.
 
----
+### ViewModelBase
 
-### 2. IApplicationStateService.cs
+All feature ViewModels inherit `ViewModelBase`. It subscribes to `StateService.PropertyChanged` and routes changes through two virtual methods that derived classes override:
 
 ```csharp
-using System;
-using WeatherDashboard.Data.Entities;
-
-namespace WeatherDashboard.Services.Interfaces
+protected ViewModelBase(IDataService dataService, IApplicationStateService stateService)
 {
-    public interface IApplicationStateService
-    {
-        SavedLocation? SelectedLocation { get; set; }
-        bool UseCelsius { get; set; }
+    DataService  = dataService;
+    StateService = stateService;
+    StateService.PropertyChanged += StateService_PropertyChanged;
+}
 
-        event EventHandler<SavedLocation?>? SelectedLocationChanged;
-        event EventHandler<bool>? TemperatureUnitChanged;
+private void StateService_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+{
+    if (e.PropertyName == nameof(StateService.SelectedLocation))
+    {
+        OnPropertyChanged(nameof(SelectedLocation));
+        OnSelectedLocationChanged();        // virtual hook
+    }
+    if (e.PropertyName == nameof(StateService.UseCelsius))
+    {
+        OnPropertyChanged(nameof(UseCelsius));
+        OnTemperatureUnitChanged();         // virtual hook
+    }
+}
+
+protected virtual void OnSelectedLocationChanged() { }
+protected virtual void OnTemperatureUnitChanged()  { }
+```
+
+`SelectedLocation` and `UseCelsius` are delegation properties with no backing fields — they always read the live singleton value.
+
+### TemperatureFormatter (Helpers/TemperatureFormatter.cs)
+
+A static utility class centralizing all conversion math so it can't drift out of sync between ViewModels:
+
+```csharp
+public static class TemperatureFormatter
+{
+    public static double ToFahrenheit(double celsius) => (celsius * 9.0 / 5.0) + 32.0;
+    public static double ToCelsius(double fahrenheit)  => (fahrenheit - 32.0) * 5.0 / 9.0;
+
+    public static string Format(double celsius, bool useCelsius)
+    {
+        if (useCelsius) return $"{celsius:F1}°C";
+        return $"{ToFahrenheit(celsius):F1}°F";
     }
 }
 ```
 
 ---
 
-### 3. ViewModelBase.cs (Delegation Layer)
+## The Temperature Unit Toggle
+
+### UI — MainWindow.xaml
+
+The toggle is a custom `ToggleButton` in the sidebar. `MainWindow.DataContext` is `ShellViewModel`. Navigation between views uses a `NavButton_Checked` code-behind handler that sets `ContentArea.Content` directly.
+
+### ViewModel — ShellViewModel
+
+`ShellViewModel` does not inherit `ViewModelBase` — it only needs to manage the shell binding. It delegates `UseCelsius` to `ApplicationStateService` and subscribes to `PropertyChanged` so the toggle reflects values loaded at startup:
 
 ```csharp
-using CommunityToolkit.Mvvm.ComponentModel;
-using WeatherDashboard.Data.Entities;
-using WeatherDashboard.Services.Interfaces;
-
-namespace WeatherDashboard.ViewModels
+public class ShellViewModel : ObservableObject
 {
-    public abstract class ViewModelBase : ObservableObject
+    private readonly IApplicationStateService _stateService;
+
+    public ShellViewModel(IApplicationStateService stateService)
     {
-        protected IDataService DataService { get; }
-        protected IApplicationStateService StateService { get; }
+        _stateService = stateService;
 
-        // Property wrappers - delegate to service
-        public SavedLocation? SelectedLocation
+        // Required: when App.OnStartup loads the saved unit from the database
+        // and sets UseCelsius on the service, the ToggleButton must be notified.
+        _stateService.PropertyChanged += (s, e) =>
         {
-            get => StateService.SelectedLocation;
-            set
-            {
-                if (StateService.SelectedLocation != value)
-                {
-                    StateService.SelectedLocation = value;
-                    OnPropertyChanged();  // Notify THIS ViewModel's view
-                }
-            }
-        }
-
-        public bool UseCelsius
-        {
-            get => StateService.UseCelsius;
-            set
-            {
-                if (StateService.UseCelsius != value)
-                {
-                    StateService.UseCelsius = value;
-                    OnPropertyChanged();  // Notify THIS ViewModel's view
-                }
-            }
-        }
-
-        protected ViewModelBase(IDataService dataService, IApplicationStateService stateService)
-        {
-            DataService = dataService;
-            StateService = stateService;
-
-            // Subscribe to changes from OTHER ViewModels
-            StateService.SelectedLocationChanged += (s, location) =>
-            {
-                OnPropertyChanged(nameof(SelectedLocation));
-            };
-
-            StateService.TemperatureUnitChanged += (s, value) =>
-            {
+            if (e.PropertyName == nameof(IApplicationStateService.UseCelsius))
                 OnPropertyChanged(nameof(UseCelsius));
-            };
-        }
-
-        // IsBusy, ErrorMessage, ExecuteAsync, etc...
+        };
     }
-}
-```
 
-**Pattern Explanation:**
-1. **Get:** Returns value directly from service
-2. **Set:** Sets value in service, then notifies view
-3. **Event Subscription:** Listens for changes from service (other VMs)
-4. **Propagation:** When service changes, all VMs get notified
-
----
-
-### 4. App.xaml.cs (Registration & Initialization)
-
-```csharp
-private void ConfigureServices(IServiceCollection services)
-{
-    // Register as SINGLETON (only one instance)
-    services.AddSingleton<IApplicationStateService, ApplicationStateService>();
-
-    // ViewModels are TRANSIENT (new instance each time)
-    services.AddTransient<DashboardViewModel>();
-    services.AddTransient<HistoryViewModel>();
-    
-    // Other services...
-}
-
-protected override async void OnStartup(StartupEventArgs e)
-{
-    base.OnStartup(e);
-
-    ConfigureServices(serviceCollection);
-    ServiceProvider = serviceCollection.BuildServiceProvider();
-
-    InitializeDatabase();
-
-    // Initialize state BEFORE showing UI
-    using (var scope = ServiceProvider.CreateScope())
+    public bool UseCelsius
     {
-        var dataService = scope.ServiceProvider.GetRequiredService<IDataService>();
-        var stateService = ServiceProvider.GetRequiredService<IApplicationStateService>();
-
-        // Load defaults from database
-        var defaultLocation = await dataService.GetDefaultLocationAsync();
-        stateService.SelectedLocation = defaultLocation;
-
-        var unit = await dataService.GetSettingAsync("TemperatureUnit", "Celsius");
-        stateService.UseCelsius = unit == "Celsius";
+        get => _stateService.UseCelsius;
+        set => _stateService.UseCelsius = value;
     }
-
-    // Now show UI with state already loaded
-    var mainWindow = new MainWindow(ServiceProvider);
-    mainWindow.Show();
 }
 ```
 
-**Startup Flow:**
-1. Build DI container
-2. Initialize database
-3. **Load shared state from database**
-4. Show UI (ViewModels already have state)
+---
+
+## Complete Event Flow
+
+### User clicks the toggle
+
+```
+ToggleButton.IsChecked changes  (TwoWay XAML binding)
+    │
+    ▼
+ShellViewModel.UseCelsius setter
+    │  writes to _stateService.UseCelsius
+    ▼
+ApplicationStateService.UseCelsius setter
+    │  SetProperty → value stored + PropertyChanged("UseCelsius") fired
+    │
+    ├──▶ ShellViewModel subscription
+    │       OnPropertyChanged("UseCelsius")  ← keeps toggle in sync for startup
+    │
+    ├──▶ ViewModelBase.StateService_PropertyChanged (DashboardViewModel)
+    │       OnPropertyChanged("UseCelsius")
+    │       → OnTemperatureUnitChanged() [override in DashboardViewModel]
+    │           OnPropertyChanged("FormattedTemperature")
+    │           OnPropertyChanged("FormattedFeelsLike")
+    │           foreach ForecastData item:
+    │             item.TempMaxDisplay = converted value  (raises PropertyChanged on item)
+    │             item.TempMinDisplay = converted value  (raises PropertyChanged on item)
+    │             → ItemsControl cards update via item's own PropertyChanged
+    │
+    └──▶ ViewModelBase.StateService_PropertyChanged (HistoryViewModel)
+            OnPropertyChanged("UseCelsius")
+            → OnTemperatureUnitChanged() [override in HistoryViewModel]
+                UpdateTemperatureChart()   ← new Plot with converted Y values + axis label
+                OnPropertyChanged("AverageTemperature")  ← ConvertTemp() returns °F value
+                OnPropertyChanged("MaxTemperature")
+                OnPropertyChanged("MinTemperature")
+                ← HistoryView.xaml.cs picks up TemperaturePlot PropertyChanged,
+                   calls WpfPlot.Reset() + Refresh()
+```
+
+### Startup: loading saved preference
+
+```
+App.OnStartup
+    │
+    ▼
+DataService.GetSettingAsync("TemperatureUnit")
+    │  returns "Celsius" or "Fahrenheit"
+    ▼
+ApplicationStateService.UseCelsius = (unit == "Celsius")
+    │  PropertyChanged("UseCelsius") fires to all subscribers
+    │
+    ├──▶ ShellViewModel → OnPropertyChanged("UseCelsius") → toggle reflects DB value
+    ├──▶ DashboardViewModel → OnTemperatureUnitChanged() → formatted props refresh
+    └──▶ HistoryViewModel  → OnTemperatureUnitChanged() → charts + stats refresh
+    │
+    ▼
+MainWindow.Show()
+    │
+    ▼
+UI renders with correct unit — no stale display on first paint
+```
 
 ---
 
-## 🔄 How It Works: Step-by-Step
+## What Each ViewModel Does
 
-### Scenario: User Selects "Kalispell" in Dashboard
+### DashboardViewModel
 
-```
-Step 1: User clicks dropdown
-    └─> XAML binding triggers
-
-Step 2: DashboardViewModel.SelectedLocation setter called
-    └─> Checks if value changed
-    └─> StateService.SelectedLocation = "Kalispell"
-    └─> OnPropertyChanged() ← Updates Dashboard view
-
-Step 3: ApplicationStateService.SelectedLocation setter
-    └─> _selectedLocation = "Kalispell"
-    └─> Fires event: SelectedLocationChanged.Invoke(this, "Kalispell")
-
-Step 4: ViewModelBase event subscription (in ALL ViewModels)
-    └─> HistoryViewModel receives event
-    └─> OnPropertyChanged(nameof(SelectedLocation)) ← Updates History view
-
-Result:
-✅ Dashboard shows Kalispell
-✅ History shows Kalispell (automatically!)
-✅ Both views synchronized
-✅ No manual code needed
-```
-
----
-
-## 🎯 Benefits
-
-### 1. True Shared State
-```csharp
-// NOT duplicated - same instance
-var dashboard = new DashboardViewModel(..., stateService);
-var history = new HistoryViewModel(..., stateService);
-
-dashboard.SelectedLocation = Kalispell;
-// history.SelectedLocation is ALSO Kalispell (same object!)
-```
-
-### 2. Automatic Synchronization
-- Change in Dashboard → History updates
-- Change in History → Dashboard updates
-- No manual sync code
-- Event-driven architecture
-
-### 3. Clean Code
-- ViewModels don't know about each other
-- No tight coupling
-- Easy to test
-- Easy to extend
-
-### 4. Excellent UX
-- User selects location once
-- All views show that location
-- Temperature unit toggle affects everything
-- Seamless experience
-
----
-
-## 🆚 Comparison with Alternatives
-
-### ❌ Duplicate Properties (Original Problem)
+Computed strings call `TemperatureFormatter.Format` at read time:
 
 ```csharp
-// DashboardViewModel
-private SavedLocation? _selectedLocation;
-
-// HistoryViewModel
-private SavedLocation? _selectedLocation;  // Duplicate!
+public string FormattedTemperature =>
+    CurrentWeather == null
+        ? "--°"
+        : TemperatureFormatter.Format(CurrentWeather.Temperature, StateService.UseCelsius);
 ```
 
-**Problems:**
-- Can get out of sync
-- Manual synchronization needed
-- Code duplication
-
----
-
-### ❌ Static Properties
+Forecast items are `ForecastData : ObservableObject` with `[ObservableProperty]` display doubles. Stamped on load and re-stamped on unit toggle. Because `ForecastData` inherits `ObservableObject`, setting `TempMaxDisplay` raises `PropertyChanged` on the item directly — the `ItemsControl` cards update without replacing the collection:
 
 ```csharp
-public static SavedLocation? GlobalSelectedLocation { get; set; }
+// Override in DashboardViewModel
+protected override void OnTemperatureUnitChanged()
+{
+    OnPropertyChanged(nameof(FormattedTemperature));
+    OnPropertyChanged(nameof(FormattedFeelsLike));
+
+    foreach (var item in Forecast)
+    {
+        item.TempMaxDisplay = StateService.UseCelsius
+            ? item.TempMax : TemperatureFormatter.ToFahrenheit(item.TempMax);
+        item.TempMinDisplay = StateService.UseCelsius
+            ? item.TempMin : TemperatureFormatter.ToFahrenheit(item.TempMin);
+    }
+}
 ```
 
-**Problems:**
-- Not testable
-- No dependency injection
-- Global coupling
-- No change notification
+### HistoryViewModel
 
----
-
-### ❌ Messenger/EventAggregator
+Statistics convert at read time via `ConvertTemp`:
 
 ```csharp
-Messenger.Send(new LocationChangedMessage(Kalispell));
+private double ConvertTemp(double celsius) =>
+    StateService.UseCelsius ? celsius : TemperatureFormatter.ToFahrenheit(celsius);
+
+public double AverageTemperature => WeatherHistory.Any()
+    ? ConvertTemp(WeatherHistory.Average(r => r.Temperature)) : 0;
 ```
 
-**Pros:**
-- Fully decoupled
-
-**Cons:**
-- Weak typing
-- No direct state access
-- More complex
-- Harder to debug
+`OnTemperatureUnitChanged` rebuilds charts and re-raises stat properties. `HistoryView.xaml.cs` subscribes to `vm.PropertyChanged` and calls `WpfPlot.Reset()` + `Refresh()` when `TemperaturePlot` changes.
 
 ---
 
-### ✅ Singleton Service (Our Solution)
+## DI Registration
 
 ```csharp
 services.AddSingleton<IApplicationStateService, ApplicationStateService>();
+
+// All ViewModels Singleton — StateService_PropertyChanged is subscribed exactly
+// once per ViewModel in the constructor. Transient would allow duplicate
+// subscriptions if the container resolved them more than once.
+services.AddSingleton<ShellViewModel>();
+services.AddSingleton<DashboardViewModel>();
+services.AddSingleton<HistoryViewModel>();
+
+services.AddScoped<IDataService, DataService>();
+services.AddScoped<IReportService, ReportService>();  // receives IApplicationStateService via constructor
 ```
 
-**Pros:**
-- ✅ Strong typing
-- ✅ Testable (can mock interface)
-- ✅ Direct property access
-- ✅ Dependency injection
-- ✅ Clear ownership
-- ✅ Change notification built-in
-
-**Cons:**
-- Slight coupling (acceptable for shared state)
+`ReportService` receives `IApplicationStateService` in its constructor so PDF and Excel reports respect the active temperature unit. Because `ReportService` is `AddScoped` and `ApplicationStateService` is `AddSingleton`, the DI container injects the singleton into the scoped service automatically — no special configuration required. The interface method signatures (`GeneratePdfReportAsync`, `GenerateExcelReportAsync`) are unchanged, so `HistoryViewModel` callers need no updates.
 
 ---
 
-## 📊 When to Use This Pattern
+## Design Alternatives Considered
 
-### ✅ Use For:
-
-1. **Cross-View State**
-   - Selected item/location
-   - Active filter
-   - Current user
-
-2. **User Preferences**
-   - Theme (light/dark)
-   - Units (metric/imperial)
-   - Language
-
-3. **Application Status**
-   - Connection state
-   - Last update time
-   - Global loading state
-
-4. **Navigation Context**
-   - Current tab
-   - Breadcrumb trail
-   - Back stack
+| Approach | Why Rejected |
+|---|---|
+| Custom `TemperatureUnitChanged` event on service | Redundant — `INotifyPropertyChanged` is already the standard mechanism; two signals for the same change would need to be kept in sync |
+| Static class with static properties | Not testable; tight coupling; no DI |
+| `WeakReferenceMessenger` | Weaker typing; fire-and-forget semantics; adds framework dependency with no benefit here |
+| Each ViewModel holds its own `UseCelsius` bool | State diverges between views; no global toggle |
+| Shared state directly in `ViewModelBase` | Instances are separate objects — state would not be shared |
 
 ---
 
-### ❌ Don't Use For:
+## Testability
 
-1. **View-Specific State**
-   - Form field values
-   - Scroll position
-   - Temporary UI state
-
-2. **Large Data Sets**
-   - Full list of items (use service queries)
-   - Complete history (load on demand)
-   - Cached API responses
-
-3. **Computed Values**
-   - Derived from other properties
-   - Formatting strings
-   - UI calculations
-
----
-
-## 🧪 Testing
-
-### Unit Test Example
+`IApplicationStateService` extends `INotifyPropertyChanged`, so Moq can raise `PropertyChanged` on a mock to simulate the service firing a change — without needing the concrete implementation:
 
 ```csharp
-[Fact]
-public void SelectedLocation_WhenChanged_FiresEvent()
-{
-    // Arrange
-    var service = new ApplicationStateService();
-    SavedLocation? capturedLocation = null;
-    service.SelectedLocationChanged += (s, loc) => capturedLocation = loc;
-    
-    var Kalispell = new SavedLocation { Name = "Kalispell" };
-    
-    // Act
-    service.SelectedLocation = Kalispell;
-    
-    // Assert
-    Assert.Equal(Kalispell, service.SelectedLocation);
-    Assert.Equal(Kalispell, capturedLocation);
-}
+var mockState = new Mock<IApplicationStateService>();
+mockState.SetupProperty(s => s.UseCelsius, true);
 
-[Fact]
-public void ViewModels_ShareSameState()
-{
-    // Arrange
-    var mockDataService = new Mock<IDataService>();
-    var stateService = new ApplicationStateService();
-    
-    var dashboard = new DashboardViewModel(mockDataService.Object, stateService, ...);
-    var history = new HistoryViewModel(mockDataService.Object, stateService, ...);
-    
-    // Act
-    dashboard.SelectedLocation = new SavedLocation { Name = "Paris" };
-    
-    // Assert
-    Assert.Equal("Paris", history.SelectedLocation?.Name);
-}
+var vm = new DashboardViewModel(mockData.Object, mockState.Object, mockWeather.Object);
+vm.CurrentWeather = new WeatherData { Temperature = 0.0, FeelsLike = -5.0 };
+
+// Simulate ApplicationStateService.SetProperty firing PropertyChanged("UseCelsius")
+mockState.Object.UseCelsius = false;
+mockState.Raise(
+    s => s.PropertyChanged += null,
+    new PropertyChangedEventArgs(nameof(IApplicationStateService.UseCelsius)));
+
+Assert.Equal("32.0°F", vm.FormattedTemperature);
 ```
 
----
-
-## 🔧 Extension: Adding New Shared State
-
-To add new shared state (e.g., `IsOnline`):
-
-### 1. Add to IApplicationStateService
-```csharp
-bool IsOnline { get; set; }
-event EventHandler<bool>? ConnectionStatusChanged;
-```
-
-### 2. Implement in ApplicationStateService
-```csharp
-private bool _isOnline = true;
-
-public bool IsOnline
-{
-    get => _isOnline;
-    set
-    {
-        if (_isOnline != value)
-        {
-            _isOnline = value;
-            ConnectionStatusChanged?.Invoke(this, value);
-        }
-    }
-}
-
-public event EventHandler<bool>? ConnectionStatusChanged;
-```
-
-### 3. Add wrapper to ViewModelBase
-```csharp
-public bool IsOnline
-{
-    get => StateService.IsOnline;
-    set
-    {
-        if (StateService.IsOnline != value)
-        {
-            StateService.IsOnline = value;
-            OnPropertyChanged();
-        }
-    }
-}
-
-// In constructor
-StateService.ConnectionStatusChanged += (s, value) =>
-{
-    OnPropertyChanged(nameof(IsOnline));
-};
-```
-
-**Result:** All ViewModels automatically get `IsOnline` property!
-
----
-
-## 💡 Key Takeaways
-
-1. **Singleton Service** holds the actual state
-2. **ViewModelBase** provides delegation properties for binding
-3. **Custom Events** notify all ViewModels of changes
-4. **Initialized on Startup** before UI is shown
-5. **Automatic Synchronization** with no manual code
-6. **Clean, Testable Architecture** following SOLID principles
-
----
-
-## 🎓 Interview Talking Points
-
-**"Tell me about your state management approach"**
-> "I use a singleton ApplicationStateService to hold shared state like SelectedLocation and UseCelsius. ViewModelBase wraps this with delegation properties that get/set directly to the service. When state changes, the service fires custom events, and all ViewModels receive the notification and update their views. This provides automatic synchronization across the application with clean, testable code."
-
-**"Why not use PropertyChanged?"**
-> "I chose custom events for specificity. Each event clearly indicates what changed and carries the exact data. ViewModels can subscribe to specific events they care about, and the event signature documents the data being passed. This is clearer than a generic PropertyChanged with a string property name."
-
-**"How do you prevent memory leaks with events?"**
-> "ViewModels are transient (recreated each time), while the StateService is a singleton. However, since ViewModels don't outlive the application, and they subscribe in their constructors, there's no leak risk. If ViewModels were long-lived, I'd implement IDisposable and unsubscribe in Dispose()."
-
----
-
-**Pattern Name:** Singleton State Service with Property Delegation  
-**Category:** State Management  
-**Difficulty:** Intermediate  
-**Benefits:** High  
-**Recommended:** ✅ Yes, for multi-view WPF applications
+See [TESTING.md](TESTING.md) for the full test suite structure.

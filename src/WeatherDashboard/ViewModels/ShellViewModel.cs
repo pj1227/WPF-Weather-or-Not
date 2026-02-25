@@ -1,9 +1,5 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.ComponentModel;
 using WeatherDashboard.Services.Interfaces;
 
 namespace WeatherDashboard.ViewModels
@@ -15,6 +11,11 @@ namespace WeatherDashboard.ViewModels
         public ShellViewModel(IApplicationStateService stateService)
         {
             _stateService = stateService;
+
+            // When App.OnStartup loads the saved temperature unit from the database
+            // and sets it on the service, we need to notify the ToggleButton binding
+            // so it reflects the loaded value rather than the default.
+            _stateService.PropertyChanged += StateService_PropertyChanged;
         }
 
         public bool UseCelsius
@@ -22,6 +23,11 @@ namespace WeatherDashboard.ViewModels
             get => _stateService.UseCelsius;
             set => _stateService.UseCelsius = value;
         }
-    }
 
+        private void StateService_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(IApplicationStateService.UseCelsius))
+                OnPropertyChanged(nameof(UseCelsius));
+        }
+    }
 }

@@ -10,7 +10,6 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         
-        <converters:TempUnitConverter x:Key="TempUnitConverter"/>
         <converters:NullToBoolConverter x:Key="NullToBoolConverter"/>
 
         <Style x:Key="CardStyle" TargetType="Border">
@@ -117,7 +116,7 @@
                     Style="{StaticResource ButtonStyle}"/>
                 </Grid>
 
-                <!-- Settings Controls (Row 1) - NEW SECTION -->
+                <!-- Settings Controls (Row 1) -->
                 <Grid Grid.Row="1" Margin="0,15,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -125,17 +124,18 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
+                    
                     <!-- Set Default Location -->
                     <Button Grid.Column="0"
-                            Content="Set as Default Location"
-                            Command="{Binding SetDefaultLocationCommand}"
-                            Padding="15,8"
-                            Background="#27ae60"
-                            Foreground="White"
-                            BorderThickness="0"
-                            Cursor="Hand"
-                            FontSize="13"
-                            IsEnabled="{Binding SelectedLocation, Converter={StaticResource NullToBoolConverter}}">
+                    Content="Set as Default Location"
+                    Command="{Binding SetDefaultLocationCommand}"
+                    Padding="15,8"
+                    Background="#27ae60"
+                    Foreground="White"
+                    BorderThickness="0"
+                    Cursor="Hand"
+                    FontSize="13"
+                    IsEnabled="{Binding SelectedLocation, Converter={StaticResource NullToBoolConverter}}">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border Background="{TemplateBinding Background}"
@@ -290,9 +290,15 @@
                                                         Orientation="Horizontal" 
                                                         HorizontalAlignment="Right"
                                                         VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding TempMaxDisplay, StringFormat='{}{0:F0}°'}"/>
-                                                <TextBlock Text=" / " Foreground="Gray" Margin="5,0"/>
-                                                <TextBlock Text="{Binding TempMinDisplay, StringFormat='{}{0:F0}°'}"/>
+                                                <TextBlock Text="{Binding TempMaxDisplay, StringFormat='{}{0:F0}°'}" 
+                                                           FontWeight="Bold"
+                                                           FontSize="16"/>
+                                                <TextBlock Text=" / " 
+                                                           Foreground="Gray"
+                                                           Margin="5,0"/>
+                                                <TextBlock Text="{Binding TempMinDisplay, StringFormat='{}{0:F0}°'}" 
+                                                           Foreground="Gray"
+                                                           FontSize="16"/>
                                             </StackPanel>
                                         </Grid>
                                     </Border>

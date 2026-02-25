@@ -65,23 +65,21 @@ namespace WeatherDashboard.ViewModels
         {
             await ExecuteAsync(async () =>
             {
-                // Load API key
                 var apiKey = await DataService.GetSettingAsync("ApiKey");
                 if (!string.IsNullOrEmpty(apiKey))
                 {
                     _weatherService.SetApiKey(apiKey);
                 }
 
-                // Load locations
                 var allLocations = await DataService.GetAllLocationsAsync();
                 Locations = new ObservableCollection<SavedLocation>(allLocations);
 
             }, "Failed to initialize dashboard");
 
-            // Load weather if location already set
             if (SelectedLocation != null)
             {
-                // fixes issue where the SavedLocation instance in the list is not the same object reference as StateService.SelectedLocation
+                // Fixes issue where the SavedLocation instance in the list is not the
+                // same object reference as StateService.SelectedLocation.
                 SelectedLocation = Locations.FirstOrDefault(l => l.Id == SelectedLocation.Id);
                 await LoadWeatherAsync();
             }
@@ -98,12 +96,10 @@ namespace WeatherDashboard.ViewModels
 
             await ExecuteAsync(async () =>
             {
-                // Get current weather
                 CurrentWeather = await _weatherService.GetCurrentWeatherAsync(
                     SelectedLocation.Latitude,
                     SelectedLocation.Longitude);
 
-                // Get forecast
                 var forecastList = await _weatherService.GetForecastAsync(
                     SelectedLocation.Latitude,
                     SelectedLocation.Longitude);
@@ -126,7 +122,6 @@ namespace WeatherDashboard.ViewModels
                             : TemperatureFormatter.ToFahrenheit(f.TempMin)
                     }));
 
-                // Save to database
                 var record = new WeatherRecord
                 {
                     LocationId = SelectedLocation.Id,
@@ -141,7 +136,6 @@ namespace WeatherDashboard.ViewModels
                 };
 
                 await DataService.SaveWeatherRecordAsync(record);
-
                 LastUpdated = DateTime.Now;
 
             }, "Failed to load weather data");
@@ -152,10 +146,8 @@ namespace WeatherDashboard.ViewModels
         {
             await ExecuteAsync(async () =>
             {
-                // Get weather for the search text
                 var weather = await _weatherService.GetCurrentWeatherAsync(SearchText);
 
-                // Check if location already exists
                 var existingLocation = await DataService.GetLocationByNameAsync(weather.LocationName);
 
                 if (existingLocation != null)
@@ -164,7 +156,6 @@ namespace WeatherDashboard.ViewModels
                 }
                 else
                 {
-                    // Create new location
                     var newLocation = new SavedLocation
                     {
                         Name = weather.LocationName,
@@ -177,15 +168,11 @@ namespace WeatherDashboard.ViewModels
 
                     SelectedLocation = await DataService.AddLocationAsync(newLocation);
 
-                    // Reload locations
                     var allLocations = await DataService.GetAllLocationsAsync();
                     Locations = new ObservableCollection<SavedLocation>(allLocations);
                 }
 
-                // Load weather
                 await LoadWeatherAsync();
-
-                // Clear search
                 SearchText = string.Empty;
 
             }, "Location not found. Please check the spelling and try again");
@@ -208,34 +195,12 @@ namespace WeatherDashboard.ViewModels
             {
                 await DataService.SaveSettingAsync("DefaultLocationId", SelectedLocation.Id.ToString());
 
-                // Show brief success message
                 var originalError = ErrorMessage;
-                ErrorMessage = $"? {SelectedLocation.Name} set as default location";
-
+                ErrorMessage = $"\u2713 {SelectedLocation.Name} set as default location";
                 await Task.Delay(2000);
                 ErrorMessage = originalError;
 
             }, "Failed to set default location");
-        }
-
-        [RelayCommand]
-        private async Task ToggleTemperatureUnitAsync()
-        {
-            UseCelsius = !UseCelsius;
-            await DataService.SaveSettingAsync(
-                "TemperatureUnit", 
-                UseCelsius ? "Celsius" : "Fahrenheit");
-        }
-
-        public string GetFormattedTemperature(double temp)
-        {
-            if (UseCelsius)
-                return $"{temp:F1}°C";
-            else
-            {
-                var fahrenheit = (temp * 9 / 5) + 32;
-                return $"{fahrenheit:F1}°F";
-            }
         }
 
         protected override void OnTemperatureUnitChanged()
@@ -255,7 +220,6 @@ namespace WeatherDashboard.ViewModels
             }
         }
 
-
         partial void OnCurrentWeatherChanged(WeatherData? value)
         {
             OnPropertyChanged(nameof(FormattedTemperature));
@@ -266,6 +230,5 @@ namespace WeatherDashboard.ViewModels
         {
             SearchLocationCommand.NotifyCanExecuteChanged();
         }
-
     }
 }
